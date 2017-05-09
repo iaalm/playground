@@ -86,6 +86,7 @@ let HIDABLE_CONTROLS = [
   ["Ratio train data", "percTrainData"],
   ["Noise level", "noise"],
   ["Batch size", "batchSize"],
+  ["Dropout Keep", "droupout"],
   ["# of hidden layers", "numHiddenLayers"],
 ];
 
@@ -309,6 +310,15 @@ function makeGUI() {
   });
   batchSize.property("value", state.batchSize);
   d3.select("label[for='batchSize'] .value").text(state.batchSize);
+
+  let dropout = d3.select("#dropout").on("input", function() {
+    state.dropout = this.value;
+    d3.select("label[for='dropout'] .value").text(this.value);
+    parametersChanged = true;
+    reset();
+  });
+  dropout.property("value", state.dropout);
+  d3.select("label[for='dropout'] .value").text(state.dropout);
 
   let activationDropdown = d3.select("#activations").on("change", function() {
     state.activation = activations[this.value];
@@ -812,7 +822,7 @@ function updateDecisionBoundary(network: nn.Node[][], firstTime: boolean) {
       let x = xScale(i);
       let y = yScale(j);
       let input = constructInput(x, y);
-      nn.forwardProp(network, input);
+      nn.forwardProp(network, input, false, state.dropout);
       nn.forEachNode(network, true, node => {
         boundary[node.id][i][j] = node.output;
       });
@@ -831,7 +841,7 @@ function getLoss(network: nn.Node[][], dataPoints: Example2D[]): number {
   for (let i = 0; i < dataPoints.length; i++) {
     let dataPoint = dataPoints[i];
     let input = constructInput(dataPoint.x, dataPoint.y);
-    let output = nn.forwardProp(network, input);
+    let output = nn.forwardProp(network, input, false, state.dropout);
     loss += nn.Errors.SQUARE.error(output, dataPoint.label);
   }
   return loss / dataPoints.length;
@@ -899,7 +909,7 @@ function oneStep(): void {
   iter++;
   trainData.forEach((point, i) => {
     let input = constructInput(point.x, point.y);
-    nn.forwardProp(network, input);
+    nn.forwardProp(network, input, true, state.dropout);
     nn.backProp(network, point.label, nn.Errors.SQUARE);
     if ((i + 1) % state.batchSize === 0) {
       nn.updateWeights(network, state.learningRate, state.regularizationRate);

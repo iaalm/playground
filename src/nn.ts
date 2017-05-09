@@ -57,12 +57,15 @@ export class Node {
   }
 
   /** Recomputes the node's output and returns it. */
-  updateOutput(): number {
+  updateOutput(dropout): number {
     // Stores total input into the node.
     this.totalInput = this.bias;
     for (let j = 0; j < this.inputLinks.length; j++) {
       let link = this.inputLinks[j];
-      this.totalInput += link.weight * link.source.output;
+      if (link.isDead) {
+        continue;
+      }
+      this.totalInput += link.weight * link.source.output * dropout;
     }
     this.output = this.activation.output(this.totalInput);
     return this.output;
@@ -240,6 +243,25 @@ export function buildNetwork(
   return network;
 }
 
+function dropout(network: Node[][], keep_prob: number): Node[][] {
+  for (let layerIdx = 1; layerIdx < network.length; layerIdx++) {
+    let currentLayer = network[layerIdx];
+    for (let i = 0; i < currentLayer.length; i++) {
+      let currentNode = currentLayer[i]
+      for (let j = 0; j < currentNode.inputLinks.length; j++) {
+        let link = currentNode.inputLinks[j];
+        if(Math.random() > keep_prob){
+          link.isDead = true;
+        }
+        else{
+          link.isDead = false;
+        }
+      }
+    }
+  }
+  return network;
+}
+
 /**
  * Runs a forward propagation of the provided input through the provided
  * network. This method modifies the internal state of the network - the
@@ -250,7 +272,17 @@ export function buildNetwork(
  *     nodes in the network.
  * @return The final output of the network.
  */
-export function forwardProp(network: Node[][], inputs: number[]): number {
+export function forwardProp(network_raw: Node[][], inputs: number[], isTrain: boolean, keep_prob: number): number {
+  let outputW = null;
+  let network = null;
+  if (isTrain){
+    network = dropout(network_raw, keep_prob)
+    outputW = 1
+  }
+  else{
+    network = dropout(network_raw, 1)
+    outputW = keep_prob
+  }
   let inputLayer = network[0];
   if (inputs.length !== inputLayer.length) {
     throw new Error("The number of inputs must match the number of nodes in" +
@@ -266,7 +298,7 @@ export function forwardProp(network: Node[][], inputs: number[]): number {
     // Update all the nodes in this layer.
     for (let i = 0; i < currentLayer.length; i++) {
       let node = currentLayer[i];
-      node.updateOutput();
+      node.updateOutput(outputW);
     }
   }
   return network[network.length - 1][0].output;
@@ -359,14 +391,14 @@ export function updateWeights(network: Node[][], learningRate: number,
           // Further update the weight based on regularization.
           let newLinkWeight = link.weight -
               (learningRate * regularizationRate) * regulDer;
-          if (link.regularization === RegularizationFunction.L1 &&
-              link.weight * newLinkWeight < 0) {
-            // The weight crossed 0 due to the regularization term. Set it to 0.
-            link.weight = 0;
-            link.isDead = true;
-          } else {
-            link.weight = newLinkWeight;
-          }
+          // if (link.regularization === RegularizationFunction.L1 &&
+          //     link.weight * newLinkWeight < 0) {
+          //   // The weight crossed 0 due to the regularization term. Set it to 0.
+          //   link.weight = 0;
+          //   link.isDead = true;
+          // } else {
+             link.weight = newLinkWeight;
+          // }
           link.accErrorDer = 0;
           link.numAccumulatedDers = 0;
         }

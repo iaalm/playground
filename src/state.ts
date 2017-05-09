@@ -107,6 +107,7 @@ export class State {
     {name: "activation", type: Type.OBJECT, keyMap: activations},
     {name: "regularization", type: Type.OBJECT, keyMap: regularizations},
     {name: "batchSize", type: Type.NUMBER},
+    {name: "dropout", type: Type.NUMBER},
     {name: "dataset", type: Type.OBJECT, keyMap: datasets},
     {name: "regDataset", type: Type.OBJECT, keyMap: regDatasets},
     {name: "learningRate", type: Type.NUMBER},
@@ -139,6 +140,7 @@ export class State {
   showTestData = false;
   noise = 0;
   batchSize = 10;
+  dropout = 0.5;
   discretize = false;
   tutorial: string = null;
   percTrainData = 50;
